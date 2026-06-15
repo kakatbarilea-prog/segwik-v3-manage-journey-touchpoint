@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Action Builder — Manage Journey</title>
+<style>
+  :root{
+    --ink:#1f2937; --ink-soft:#374151; --muted:#6b7280;
+    --line:#e5e7eb; --line-strong:#d1d5db; --link:#3b82f6;
+    --accent:#2c5282; --sel-bg:#eef2f7; --sel-border:#2d3748;
+    --hover:#f3f6fb; --price:#9ca3af;
+    --shadow:0 1px 2px rgba(16,24,40,.05); --shadow-pop:0 8px 24px rgba(16,24,40,.12);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#f7f8fa;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 24px 80px;position:relative;}
+
+  .rail{position:absolute;left:34px;top:30px;bottom:60px;width:2px;background:var(--line);}
+  .node{position:absolute;left:24px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#fff;z-index:2;}
+  .node.solid{background:var(--ink);}
+  .node.solid svg{stroke:#fff;}
+  .node.ring .dot{width:22px;height:22px;border-radius:50%;border:4px solid var(--ink);}
+
+  .section{padding-left:34px;}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--ink);text-transform:uppercase;margin:0 0 2px;}
+  .subq{font-size:13px;color:var(--link);margin:0 0 14px;}
+
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:30px;}
+  .card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:18px 10px 14px;text-align:center;cursor:default;position:relative;user-select:none;}
+  .card .ic{color:var(--ink-soft);display:flex;justify-content:center;margin-bottom:8px;}
+  .card .lbl{font-size:14px;font-weight:600;color:var(--ink);}
+  .card.active{border:1.5px solid var(--sel-border);background:var(--sel-bg);}
+  .card.soon .ic,.card.soon .lbl{color:#b6bcc6;}
+  .soon-badge{position:absolute;top:8px;right:8px;font-size:9px;font-weight:700;letter-spacing:.04em;color:#9aa1ac;background:#eceef1;border-radius:6px;padding:2px 6px;}
+
+  .field{margin-bottom:22px;}
+  .field-label{font-size:15px;font-weight:700;color:var(--ink);margin:0 0 9px;}
+
+  /* pills */
+  .pills{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .pill{border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft);border-radius:999px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:.12s;}
+  .pill:hover{border-color:#9aa6b8;}
+  .pill.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  /* segmented toggle */
+  .seg{display:flex;border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;}
+  .seg button{flex:1;border:0;background:#fff;padding:14px;font-size:15px;font-weight:700;color:var(--ink-soft);cursor:pointer;}
+  .seg button.on{background:var(--ink);color:#fff;}
+
+  /* select shell */
+  .sel{position:relative;border:1px solid var(--line-strong);border-radius:8px;background:#fff;}
+  .sel.focus{border-color:#9aa6b8;box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+  .sel-input{width:100%;border:0;outline:0;background:transparent;font-size:14px;color:var(--ink);padding:12px 40px 12px 14px;border-radius:8px;}
+  .sel-input::placeholder{color:#9aa1ac;}
+  .sel-tools{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:8px;color:#9aa1ac;}
+  .sel-tools .chev{cursor:pointer;display:flex;}
+  .pop{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow-pop);max-height:300px;overflow-y:auto;z-index:40;display:none;padding:4px 0;}
+  .pop.open{display:block;}
+  .opt{padding:9px 14px;font-size:14px;color:var(--ink);cursor:pointer;}
+  .opt:hover,.opt.hl{background:var(--hover);}
+  .opt.active{background:#e8eefc;font-weight:700;}
+  .empty{padding:12px 14px;font-size:13px;color:var(--muted);}
+
+  /* journey filter row */
+  .journey-row{display:flex;gap:12px;align-items:stretch;margin-bottom:14px;}
+  .journey-row .type-sel{flex:0 0 210px;}
+  .search-box{flex:1;position:relative;border:1px solid var(--line-strong);border-radius:8px;background:#fff;display:flex;align-items:center;}
+  .search-box svg{margin-left:14px;color:#9aa1ac;flex:none;}
+  .search-box input{width:100%;border:0;outline:0;background:transparent;font-size:14px;padding:13px 14px 13px 10px;}
+  .search-box input::placeholder{color:#9aa1ac;}
+
+  /* journey list */
+  .jlist{border:1px solid var(--line-strong);border-radius:8px;max-height:300px;overflow-y:auto;background:#fff;}
+  .jrow{padding:15px 18px;font-size:15px;font-weight:700;color:var(--ink);border-bottom:1px solid var(--line);cursor:pointer;}
+  .jrow:last-child{border-bottom:0;}
+  .jrow:hover{background:var(--hover);}
+  .jrow{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  .jrow.sel{background:#e8eefc;box-shadow:inset 3px 0 0 var(--accent);}
+  .jrow .tick{flex:none;width:20px;height:20px;border-radius:50%;background:var(--accent);display:none;align-items:center;justify-content:center;}
+  .jrow.sel .tick{display:flex;}
+  .jempty{padding:22px 18px;font-size:14px;color:var(--muted);text-align:center;}
+
+  /* selected-journey confirmation */
+  .chosen{display:none;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding:11px 14px;border:1px solid #bcd0ec;background:#eef4fc;border-radius:8px;font-size:14px;color:var(--ink);}
+  .chosen.show{display:flex;}
+  .chosen .lead{font-weight:700;margin-right:2px;}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #bcd0ec;border-radius:999px;padding:5px 6px 5px 12px;font-size:13px;font-weight:600;}
+  .chip .x{width:18px;height:18px;border-radius:50%;background:#dbe6f5;color:#3a557e;border:0;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;}
+  .chip .x:hover{background:#c7d6ec;}
+  .chosen .clearall{margin-left:auto;border:0;background:transparent;color:#6b7280;cursor:pointer;font-size:13px;text-decoration:underline;}
+
+  @media(max-width:760px){
+    .grid{grid-template-columns:repeat(2,1fr);}
+    .journey-row{flex-direction:column;}
+    .journey-row .type-sel{flex:auto;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="rail"></div>
+
+  <div class="node solid" style="top:30px;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+  </div>
+
+  <div class="section">
+    <p class="eyebrow">Action</p>
+    <p class="subq">What type of action should happen?</p>
+    <div class="grid" id="actionGrid"></div>
+  </div>
+
+  <div class="node ring"><div class="dot"></div></div>
+
+  <div class="section">
+    <p class="eyebrow" style="margin-bottom:2px;">Details</p>
+    <p class="subq">Start or stop a journey for the selected recipient.</p>
+
+    <!-- Recipient -->
+    <div class="field">
+      <p class="field-label">Recipient</p>
+      <p class="subq" style="margin-top:-4px;">Who is the journey applied to?</p>
+      <div class="pills" id="recipientPills"></div>
+      <div class="sel" data-select="recipient">
+        <input class="sel-input" type="text" autocomplete="off" placeholder="Search contact by name or email...">
+        <div class="sel-tools"><span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span></div>
+        <div class="pop"></div>
+      </div>
+    </div>
+
+    <!-- Action toggle -->
+    <div class="field">
+      <p class="field-label">Action</p>
+      <div class="seg" id="actionToggle">
+        <button class="on" data-act="start">Start Journey</button>
+        <button data-act="stop">Stop Journey</button>
+      </div>
+    </div>
+
+    <!-- Journey -->
+    <div class="field" style="margin-bottom:0;">
+      <p class="field-label">Journey</p>
+      <p class="subq" style="margin-top:-4px;">Filter by type, then search and select.</p>
+
+      <div class="journey-row">
+        <div class="sel type-sel" data-select="jtype">
+          <input class="sel-input" type="text" autocomplete="off" value="All types" readonly style="cursor:pointer;">
+          <div class="sel-tools"><span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></span></div>
+          <div class="pop"></div>
+        </div>
+        <div class="search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="journeySearch" type="text" placeholder="Search journeys...">
+        </div>
+      </div>
+
+      <div class="chosen" id="chosenJourney">
+        <span class="lead" id="chosenLead">Selected journeys:</span>
+        <span id="chosenChips" style="display:contents;"></span>
+        <button class="clearall" id="clearChosen">Clear all</button>
+      </div>
+
+      <div class="jlist" id="journeyList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- ACTIONS ---------- */
+const ACTIONS = [
+  {key:'email', label:'Email', icon:'mail'},
+  {key:'sms', label:'SMS', icon:'sms'},
+  {key:'call', label:'Call', icon:'phone', soon:true},
+  {key:'task', label:'Task', icon:'task', soon:true},
+  {key:'attribute', label:'Attribute', icon:'attr'},
+  {key:'transaction', label:'Transaction', icon:'card'},
+  {key:'webhook', label:'Webhook', icon:'hook'},
+  {key:'push', label:'Push', icon:'bell'},
+  {key:'post', label:'Post', icon:'share', soon:true},
+  {key:'meeting', label:'Add to Meeting', icon:'addppl'},
+  {key:'journey', label:'Manage Journey', icon:'journey', active:true},
+];
+const ICONS = {
+  mail:'<rect x="2" y="4" width="20" height="16" rx="2"></rect><polyline points="22 6 12 13 2 6"></polyline>',
+  sms:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path>',
+  task:'<rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 4V2h6v2"></path><line x1="9" y1="11" x2="15" y2="11"></line><line x1="9" y1="15" x2="13" y2="15"></line>',
+  attr:'<polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line>',
+  hook:'<path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"></path><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"></path><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"></path>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>',
+  share:'<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>',
+  addppl:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line>',
+  journey:'<path d="M4 19a3 3 0 0 0 3-3V8a3 3 0 0 1 6 0v8a3 3 0 0 0 6 0"></path><circle cx="4" cy="19" r="1.6"></circle><circle cx="20" cy="5" r="1.6"></circle>',
+};
+const grid = document.getElementById('actionGrid');
+ACTIONS.forEach(a=>{
+  const c=document.createElement('div');
+  c.className='card'+(a.active?' active':'')+(a.soon?' soon':'');
+  c.innerHTML=(a.soon?'<span class="soon-badge">COMING SOON</span>':'')+
+    '<div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+ICONS[a.icon]+'</svg></div>'+
+    '<div class="lbl">'+a.label+'</div>';
+  grid.appendChild(c); // locked mockup: no switching
+});
+
+/* ---------- RECIPIENT TABS ---------- */
+const RECIPIENT_TABS = {
+  Registrants:{placeholder:"Choose from Registrants...",options:["Host","Non-Hosts","Clients","Guests","Members","Prospects","Colleagues","Attendees","Staff","Attendees Invited","Attendees Attending","Attendees Not Attending","Attendees Maybe","Attendees Attended","Attendees Not Attended","Candidates"]},
+  Meeting:{placeholder:"Choose from Meeting...",options:["Created By","Meeting Host","Meeting Managers"]},
+  Broadcast:{placeholder:"Choose from Broadcast...",options:["Active Members","Waitlisted"]},
+  Custom:{placeholder:"Search contact by name or email...",options:[],lookup:true}
+};
+
+/* ---------- JOURNEY TYPE -> LIST ---------- */
+const REGISTRATION_JOURNEYS = [
+  "Journey - Agora Guild Intro Call","Journey - Agora Guild Intro Call","Journey - Agora Guild Intro Call","Journey - Agora Guild Intro Call",
+  "Journey - Agora Guild: Legacy Finance Event","Journey - Paintball","Journey - Sales & Discovery Meeting",
+  "Journey - Weekly 7 AM Thursday","Journey - Weekly 7 AM Thursday",
+  "Journey - Wildest Dreams Session","Journey - Wildest Dreams Session","Journey - Wildest Dreams Session","Journey - Wildest Dreams Session","Journey - Wildest Dreams Session",
+  "Journey - 1-to-1 Coffee Connect","Journey - Active Members",
+  "Journey - Agora Guild: Legacy Finance Event","Journey - Agora Guild: Legacy Finance Event",
+  "Journey - Alpha Fit Workout","Journey - Bahamas Trip","Journey - Coffee at the Molly Pitcher Inn","Journey - Family Day",
+  "Journey - Holiday Gala","Journey - Major Events","Journey - Paintball","Journey - Recurring Meeting",
+  "Journey - Sales & Discovery Meeting","Journey - test event - pete","Journey - Virtual 1-1 Connect","Journey - Volunteer Event: Rising Treetops"
+];
+const CONTACT_JOURNEYS = [
+  "Activate Lead Nurture Sequence","Add to Free Month Trial","Add to Waitlist / Holding Sequence",
+  "Paid Member Onboarding + 90-Day Sequence","Mark Lead as Not Interested","Add to Ghosting Recovery Journey",
+  "Cold/Warm Lead Nurture Sequence - Custom Form Journey"
+];
+const ALL_JOURNEYS = [
+  "Activate Lead Nurture Sequence","Add to Free Month Trial","Add to Waitlist / Holding Sequence","Free Month Trial Subscription Journey",
+  "Journey - Agora Guild Intro Call","Journey - Agora Guild Intro Call","Journey - Agora Guild Intro Call","Journey - Agora Guild Intro Call",
+  "Journey - Agora Guild: Legacy Finance Event","Journey - Paintball","Journey - Sales & Discovery Meeting",
+  "Journey - Weekly 7 AM Thursday","Journey - Weekly 7 AM Thursday",
+  "Journey - Wildest Dreams Session","Journey - Wildest Dreams Session","Journey - Wildest Dreams Session","Journey - Wildest Dreams Session","Journey - Wildest Dreams Session",
+  "Mark Lead as Not Interested","Membership Checkout Journey","Paid Member Onboarding + 90-Day Sequence","vCard Download Journey",
+  "Add to Ghosting Recovery Journey","Cold/Warm Lead Nurture Sequence - Custom Form Journey",
+  "Journey - 1-to-1 Coffee Connect","Journey - Active Members",
+  "Journey - Agora Guild: Legacy Finance Event","Journey - Agora Guild: Legacy Finance Event",
+  "Journey - Alpha Fit Workout","Journey - Bahamas Trip","Journey - Coffee at the Molly Pitcher Inn","Journey - Family Day",
+  "Journey - Holiday Gala","Journey - Major Events","Journey - Paintball","Journey - Recurring Meeting",
+  "Journey - Sales & Discovery Meeting","Journey - test event - pete","Journey - Virtual 1-1 Connect","Journey - Volunteer Event: Rising Treetops"
+];
+const JOURNEY_TYPES = ["All types","Agreement","Contact","Credit","Custom Form","Document","Event","Feature","Invoice","Invoicing Event","Meeting","Opportunity","Orders","Payment","Project","Purchase Order","Quote","Referral","Registration","Subscription","Time Log"];
+const TYPE_JOURNEYS = {
+  "All types":ALL_JOURNEYS,
+  "Registration":REGISTRATION_JOURNEYS,
+  "Contact":CONTACT_JOURNEYS,
+  "Document":["vCard Download Journey"],
+  "Subscription":["Free Month Trial Subscription Journey"],
+  "Orders":["Membership Checkout Journey"]
+};
+
+/* ---------- searchable select helper ---------- */
+function setupSelect(sel, getOptions, opts={}){
+  const input=sel.querySelector('.sel-input');
+  const pop=sel.querySelector('.pop');
+  const chev=sel.querySelector('.chev');
+  let lastValue=input.value;
+  const readOnly = input.hasAttribute('readonly');
+
+  function render(filter){
+    pop.innerHTML='';
+    const items=getOptions().filter(o=>!filter||o.toLowerCase().includes(filter.toLowerCase()));
+    if(!items.length){const e=document.createElement('div');e.className='empty';e.textContent=opts.lookup?'Type to search contacts...':'No matches';pop.appendChild(e);return;}
+    items.forEach((o,i)=>{
+      const el=document.createElement('div');
+      el.className='opt'+(o===input.value?' active':'')+(i===0?' hl':'');
+      el.textContent=o;
+      el.addEventListener('mousedown',e=>{e.preventDefault();input.value=o;lastValue=o;close();if(opts.onSelect)opts.onSelect(o);});
+      pop.appendChild(el);
+    });
+  }
+  function open(){render(readOnly?'':input.value);pop.classList.add('open');sel.classList.add('focus');}
+  function close(){pop.classList.remove('open');sel.classList.remove('focus');if(!opts.lookup&&!readOnly&&lastValue)input.value=lastValue;}
+  if(readOnly){input.addEventListener('mousedown',e=>{e.preventDefault();pop.classList.contains('open')?close():open();});}
+  else{
+    input.addEventListener('focus',open);
+    input.addEventListener('input',()=>{if(!pop.classList.contains('open'))open();render(input.value);});
+  }
+  chev.addEventListener('mousedown',e=>{e.preventDefault();if(pop.classList.contains('open'))close();else if(readOnly)open();else input.focus();});
+  document.addEventListener('mousedown',e=>{if(!sel.contains(e.target))close();});
+}
+
+/* recipient (Custom active by default) */
+const pillsWrap=document.getElementById('recipientPills');
+const recipientSel=document.querySelector('[data-select="recipient"]');
+const recipientInput=recipientSel.querySelector('.sel-input');
+let currentTab='Custom';
+Object.keys(RECIPIENT_TABS).forEach(name=>{
+  const p=document.createElement('button');
+  p.className='pill'+(name==='Custom'?' active':'');
+  p.textContent=name;
+  p.addEventListener('click',()=>{
+    pillsWrap.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');currentTab=name;
+    recipientInput.value='';recipientInput.placeholder=RECIPIENT_TABS[name].placeholder;
+  });
+  pillsWrap.appendChild(p);
+});
+setupSelect(recipientSel,()=>RECIPIENT_TABS[currentTab].options,{lookup:true});
+
+/* action toggle */
+document.getElementById('actionToggle').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#actionToggle button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+});
+
+/* journey list + type filter */
+const journeyList=document.getElementById('journeyList');
+const journeySearch=document.getElementById('journeySearch');
+const chosenBar=document.getElementById('chosenJourney');
+const chosenChips=document.getElementById('chosenChips');
+const chosenLead=document.getElementById('chosenLead');
+let currentType='All types';
+const selected=new Map();   // key "type|idx" -> name
+
+function showChosen(){
+  if(!selected.size){chosenBar.classList.remove('show');return;}
+  chosenBar.classList.add('show');
+  chosenLead.textContent='Selected journeys ('+selected.size+'):';
+  chosenChips.innerHTML='';
+  selected.forEach((name,key)=>{
+    const c=document.createElement('span');
+    c.className='chip';
+    c.innerHTML='<span>'+name+'</span><button class="x" title="Remove">&#10005;</button>';
+    c.querySelector('.x').addEventListener('click',()=>{
+      selected.delete(key);
+      const r=journeyList.querySelector('[data-key="'+CSS.escape(key)+'"]');
+      if(r)r.classList.remove('sel');
+      showChosen();
+    });
+    chosenChips.appendChild(c);
+  });
+}
+
+function renderJourneys(){
+  const base=TYPE_JOURNEYS[currentType]||[];
+  const q=journeySearch.value.trim().toLowerCase();
+  const items=base.map((j,idx)=>({j,idx})).filter(o=>!q||o.j.toLowerCase().includes(q));
+  journeyList.innerHTML='';
+  if(!items.length){
+    const e=document.createElement('div');e.className='jempty';
+    e.textContent=base.length? 'No journeys match your search.' : 'No journeys for this type.';
+    journeyList.appendChild(e);return;
+  }
+  items.forEach(({j,idx})=>{
+    const key=currentType+'|'+idx;
+    const r=document.createElement('div');
+    r.dataset.key=key;
+    r.className='jrow'+(selected.has(key)?' sel':'');
+    r.innerHTML='<span>'+j+'</span><span class="tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>';
+    r.addEventListener('click',()=>{
+      if(selected.has(key)){selected.delete(key);r.classList.remove('sel');}
+      else{selected.set(key,j);r.classList.add('sel');}
+      showChosen();
+    });
+    journeyList.appendChild(r);
+  });
+}
+document.getElementById('clearChosen').addEventListener('click',()=>{
+  selected.clear();showChosen();
+  journeyList.querySelectorAll('.jrow').forEach(x=>x.classList.remove('sel'));
+});
+setupSelect(document.querySelector('[data-select="jtype"]'),()=>JOURNEY_TYPES,{onSelect:t=>{currentType=t;renderJourneys();}});
+journeySearch.addEventListener('input',renderJourneys);
+renderJourneys();
+</script>
+</body>
+</html>
